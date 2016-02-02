@@ -26,7 +26,7 @@ div.Example {
 <div id="container">
     
 <div id="product">
-    <div id="product_logo"><a href="http://luacov.luaforge.net">
+    <div id="product_logo"><a href="http://keplerproject.github.com/luacov">
         <img alt="LuaCov logo" src="luacov.png" />
     </a></div>
     <div id="product_name"><big><strong>LuaCov</strong></big></div>
@@ -50,9 +50,10 @@ div.Example {
             <li> <a href="index.html#contact">Contact</a></li>
         </ul>
     </li>
-    <li><a href="http://luaforge.net/projects/luacov/">Project</a>
+    <li><a href="doc/index.html">Reference</a></li>
+    <li><a href="http://github.com/keplerproject/luacov">Project</a>
         <ul>
-            <li><a href="http://luaforge.net/scm/?group_id=290">CVS</a></li>
+            <li><a href="http://github.com/keplerproject/luacov">Git</a></li>
         </ul>
     </li>
     <li><a href="license.html">License</a></li>
@@ -81,12 +82,19 @@ LuaCov is free software and uses the same <a href="license.html">license</a> as 
 <h2><a name="download"></a>Download</h2>
 
 <p>
-LuaCov can be downloaded from its
-<a href="http://luaforge.net/projects/luacov/files/">LuaForge page</a>.
+LuaCov can be downloaded via LuaRocks:
 </p>
+
+<div class="Example">
+luarocks install luacov
+</div>
 
 <p>
 LuaCov is written in pure Lua and has no external dependencies.
+</p>
+
+<p>
+Alternatively, you can get the code directly from <a href="http://github.com/keplerproject/luacov">the git repo</a>.
 </p>
 
 <h2><a name="instructions"></a>Instructions</h2>
@@ -108,12 +116,20 @@ lua -lluacov test.lua
 </div>
 
 <p>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;or
+</p>
+
+<div class="Example">
+lua -erequire('luacov.runner')('myconfigfilename') test.lua
+</div>
+
+<p>
 (Alternatively, you can add <tt>require("luacov")</tt> to the first line
 of your script.)
 </p>
 
 <p>
-Once the script is run, a file called <tt>lcov.stats.out</tt> is generated.
+Once the script is run, a file called <tt>luacov.stats.out</tt> is generated.
 If the file already exists, statistics are <i>added</i> to it. This is useful,
 for example, for making a series of runs with different input parameters in
 a test suite. To start the accounting from scratch, just delete the stats file.
@@ -121,8 +137,8 @@ a test suite. To start the accounting from scratch, just delete the stats file.
 
 <p>
 To generate a report, just run the <tt>luacov</tt> command-line script.
-It expects to find a file named <tt>lcov.stats.out</tt> in the current
-directory, and outputs a file named <tt>lcov.report.out</tt>.
+It expects to find a file named <tt>luacov.stats.out</tt> in the current
+directory, and outputs a file named <tt>luacov.report.out</tt>.
 </p>
 
 <p>This is an example output of the report file:</p>
@@ -163,6 +179,76 @@ just modify the first line of <tt>xavante_start.lua</tt> so it reads:
 <h2><a name="history"></a>History</h2>
 
 <dl>
+    <dt><strong>0.9.1</strong> [December 7, 2015]</dt>
+    <dd>
+        <ul>
+            <li>Fixed error when running LuaCov using Lua 5.1.</li>
+        </ul>
+    </dd>
+    <dt><strong>0.9</strong> [December 6, 2015]</dt>
+    <dd>
+        <ul>
+            <li>with_luacov() function for covering coroutines created via the C API.</li>
+            <li>fix priorities in modules list</li>
+            <li>improve coverage analysis/exclusions list</li>
+            <li>improve handling of multiline function declarations</li>
+            <li>LDoc documentation</li>
+        </ul>
+    </dd>
+    <dt><strong>0.8</strong> [September 30, 2015]</dt>
+    <dd>
+        <ul>
+            <li>Improved lexer which reduces false positives</li>
+            <li>luacov.pause() and luacov.resume() functions</li>
+            <li>"modules" option for configuration</li>
+            <li>Plus several fixes and code cleanups.</li>
+        </ul>
+    </dd>
+    <dt><strong>0.7</strong> [January 12, 2015]</dt>
+    <dd>
+        <ul>
+            <li>Improvement in detection of long strings.</li>
+            <li>Added "savestepsize" option.</li>
+            <li>Fix handling "codefromstring" option.</li>
+        </ul>
+    </dd>
+    <dt><strong>0.6</strong> [September 10, 2014]</dt>
+    <dd>
+        <ul>
+            <li>Support for custom reporter objects</li>
+            <li>Configuration option for processing/skipping strings</li>
+            <li>Several fixes: behavior of on_exit, inclusion/exclusions lists, etc.</li>
+        </ul>
+    </dd>
+    <dt><strong>0.5</strong> [February 8, 2014]</dt>
+    <dd>
+        <ul>
+            <li>Improved performance in reporter module</li>
+            <li>More improvements in exclusions list</li>
+        </ul>
+    </dd>
+    <dt><strong>0.4</strong> [December 3, 2013]</dt>
+    <dd>
+        <ul>
+            <li>Lua 5.2 compatibility fixes</li>
+            <li>Several improvements in exclusions list</li>
+        </ul>
+    </dd>
+    <dt><strong>0.3</strong> [October 10, 2012]</dt>
+    <dd>
+        <ul>
+            <li>Added configuration options and files</li>
+            <li>Summary in report</li>
+            <li>Improved handling of long strings and comments</li>
+            <li>Support for coroutines and os.exit()</li>
+        </ul>
+    </dd>
+    <dt><strong>0.2</strong> [April 30, 2009]</dt>
+    <dd>
+        <ul>
+            <li>Ignore code loaded from strings.</li>
+        </ul>
+    </dd>
     <dt><strong>0.1</strong> [July 16, 2007]</dt>
     <dd>
         <ul>
@@ -174,8 +260,10 @@ just modify the first line of <tt>xavante_start.lua</tt> so it reads:
 <h2><a name="credits"></a>Credits</h2>
 
 <p>
-LuaCov was designed and implemented by Hisham Muhammad as a tool for
-testing <a href="http://luarocks.luaforge.net">LuaRocks</a>.
+LuaCov was originally designed and implemented by Hisham Muhammad as
+a tool for testing <a href="http://luarocks.org">LuaRocks</a>. A number
+of people have improved it since: see the Git logs for the full list of
+contributors!
 </p>
 
 <h2><a name="contact"></a>Contact</h2>

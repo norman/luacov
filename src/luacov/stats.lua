@@ -1,57 +1,92 @@
+-----------------------------------------------------
+-- Manages the file with statistics (being) collected.
+-- In general the module requires that its property `stats.statsfile`
+-- has been set to the filename of the statsfile to create, load, etc.
+-- @class module
+-- @name luacov.stats
+local stats = {}
 
-module("luacov.stats", package.seeall)
-
-local statsfile = "luacov.stats.out"
-
-function load_stats()
-   local data, most_hits = {}, 0
-   local stats = io.open(statsfile, "r")
-   if not stats then return data end
+-----------------------------------------------------
+-- Loads the stats file.
+-- @return table with data. The table maps filenames to stats tables.
+-- Per-file tables map line numbers to hits or nils when there are no hits.
+-- Additionally, .max field contains maximum line number
+-- and .max_hits contains maximum number of hits in the file.
+function stats.load()
+   local data = {}
+   local fd = io.open(stats.statsfile, "r")
+   if not fd then
+      return nil
+   end
    while true do
-      local nlines = stats:read("*n")
-      if not nlines then break end
-      local skip = stats:read(1)
-      if skip ~= ":" then break end
-      local filename = stats:read("*l")
-      if not filename then break end
-      data[filename] = {}
-      data[filename].max = nlines
-      for i = 1, nlines do
-         local hits = stats:read("*n")
-         if not hits then break end
-         local skip = stats:read(1)
-         if skip ~= " " then break end
+      local max = fd:read("*n")
+      if not max then
+         break
+      end
+      local skip = fd:read(1)
+      if skip ~= ":" then
+         break
+      end
+      local filename = fd:read("*l")
+      if not filename then
+         break
+      end
+      data[filename] = {
+         max = max,
+         max_hits = 0
+      }
+      for i = 1, max do
+         local hits = fd:read("*n")
+         if not hits then
+            break
+         end
+         local skip = fd:read(1)
+         if skip ~= " " then
+            break
+         end
          if hits > 0 then
             data[filename][i] = hits
-            most_hits = math.max(most_hits, hits)
+            data[filename].max_hits = math.max(data[filename].max_hits, hits)
          end
       end
    end
-   stats:close()
-   return data, most_hits
+   fd:close()
+   return data
 end
 
-function start_stats()
-   return io.open(statsfile, "w")
+--------------------------------
+-- Opens the statfile
+-- @return filehandle
+function stats.start()
+   return io.open(stats.statsfile, "w")
 end
 
-function stop_stats(stats)
-   stats:close()
+--------------------------------
+-- Closes the statfile
+-- @param fd filehandle to the statsfile
+function stats.stop(fd)
+   fd:close()
 end
 
-function save_stats(data, stats)
-   stats:seek("set")
+--------------------------------
+-- Saves data to the statfile
+-- @param data data to store
+-- @param fd filehandle where to store
+function stats.save(data, fd)
+   fd:seek("set")
    for filename, filedata in pairs(data) do
       local max = filedata.max
-      stats:write(filedata.max, ":", filename, "\n")
+      fd:write(max, ":", filename, "\n")
       for i = 1, max do
          local hits = filedata[i]
          if not hits then
             hits = 0
          end
-         stats:write(hits, " ")
+         fd:write(hits, " ")
       end
-      stats:write("\n")
+      fd:write("\n")
    end
-   stats:flush()
+   fd:flush()
 end
+
+return stats

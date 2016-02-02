@@ -1,122 +1,108 @@
 #!/usr/bin/env lua
+-- commandline;
+-- luacov [-c configfile] filename filename ...
+-- the -c option will load the specifed configfile
+-- the filenames are the ones that need to be reported on
 
-local luacov = require("luacov.stats")
+local arg = { ... }
 
-local data, most_hits = luacov.load_stats()
+local runner = require("luacov.runner")
 
-if not data then
-   print("Could not load stats file "..luacov.statsfile..".")
-   print("Run your Lua program with -lluacov and then rerun luacov.")
-   os.exit(1)
+local patterns = {}
+local configfile = nil
+local reporter = nil
+
+local function show_help()
+   print([[
+luacov - coverage analyzer for Lua scripts
+
+Usage:
+   luacov [-c=configfile] [-r=reporter] [pattern...]
+
+   Launch your Lua programs with -lluacov to perform accounting.
+   
+   Launch this script to generate a report from collected stats.
+   
+   By default it reports on every Lua file encountered running your
+   script. To filter filenames, pass one or more patterns in the
+   command line.
+
+   For details of the config file, see the luacov.defaults module.
+   (Copy it and modify it and you'll have a config file.)
+
+Example:
+   luacov foo/bar
+   
+   This will report only on modules in the foo/bar subtree.
+
+]])
 end
 
-local report = io.open("luacov.report.out", "w")
+local function read_key(arg, i)
+   if arg[i]:sub(1,1) ~= '-' then return nil, nil, i end
+   if not arg[i]:sub(2,2) then return "-", nil, i+1 end
+
+   local key, value
+   if arg[i]:sub(2,2) ~= '-' then
+      key   = arg[i]:sub(2,2)
+      value = arg[i]:sub(3)
+      if #value == 0 then
+         i = i + 1
+         value = arg[i]
+      elseif value:sub(1,1) == '=' then
+         value = value:sub(2)
+      end
+      return key, value, i + 1
+   end
+
+   key = arg[i]:sub(3):match("^([^=]+)=")
+   if key then
+      value = arg[i]:sub(4 + #key)
+      return key, value, i+1
+   end
+
+   return arg[i]:sub(3), arg[i+1], i+2
+end
+
+local function norm_pat(p)
+  return((p
+    :gsub("/", ".")
+    :gsub("\\", ".")
+    :gsub("%.lua$", ""))
+  )
+end
 
 -- only report on files specified on the command line
-local patterns = {}
-for i = 1, #arg do
-   patterns[i] = arg[i]
-end
 
-local names = {}
-for filename, _ in pairs(data) do
-   if not patterns[1] then
-      table.insert(names, filename)
+local i = 1
+while arg[i] do
+   local key, value
+   key, value, i = read_key(arg, i)
+   if key then
+      if (key == "h") or (key == "help") then
+         show_help()
+         os.exit(0)
+      elseif (key == "c") or (key == "config") then
+         configfile = value
+      elseif (key == "r") or (key == "reporter") then
+         reporter = value
+      end
    else
-      local path = filename:gsub("/", "."):gsub("%.lua$", "")
-      local include = false
-      for _, p in ipairs(patterns) do
-         if path:match(p) then
-            include = true
-            break
-         end
-      end
-      if include then
-         table.insert(names, filename)
-      end
+      table.insert(patterns, norm_pat(arg[i]))
+      i = i +1
    end
 end
 
-table.sort(names)
+-- will load configfile specified, or defaults otherwise
+local configuration = runner.load_config(configfile)
 
-local most_hits_length = ("%d"):format(most_hits):len()
-local empty_format = (" "):rep(most_hits_length+1)
-local false_negative_format = ("!%% %dd"):format(most_hits_length)
-local zero_format = ("*"):rep(most_hits_length).."0"
-local count_format = ("%% %dd"):format(most_hits_length+1)
+configuration.include = configuration.include or {}
+configuration.exclude = configuration.exclude or {}
 
-local exclusions =
-{
-   { false, "^#!" },     -- Unix hash-bang magic line
-   { true, "" },         -- Empty line
-   { true, "end,?" },    -- Single "end"
-   { true, "else" },     -- Single "else"
-   { true, "repeat" },   -- Single "repeat"
-   { true, "do" },       -- Single "do"
-   { true, "local%s+[%w_,%s]+" }, -- "local var1, ..., varN"
-   { true, "local%s+[%w_,%s]+%s*=" }, -- "local var1, ..., varN ="
-   { true, "local%s+function%s*%([%w_,%s]*%)" }, -- "local function(arg1, ..., argN)"
-   { true, "local%s+function%s+[%w_]*%s*%([%w_,%s]*%)" }, -- "local function f (arg1, ..., argN)"
-}
-
-local function excluded(line)
-   for _, e in ipairs(exclusions) do
-      if e[1] then
-         if line:match("^%s*"..e[2].."%s*$") or line:match("^%s*"..e[2].."%s*%-%-") then return true end
-      else
-         if line:match(e[2]) then return true end
-      end
-   end
-   return false
+-- add elements specified on commandline to config
+for i, patt in ipairs(patterns) do
+  table.insert(configuration.include, patt)
 end
 
-for _, filename in ipairs(names) do
-   local filedata = data[filename]
-   local file = io.open(filename, "r")
-   if file then
-      report:write("\n")
-      report:write("==============================================================================\n")
-      report:write(filename, "\n")
-      report:write("==============================================================================\n")
-      local line_nr = 1
-      block_comment, equals = false, ""
-      while true do
-         local line = file:read("*l")
-         if not line then break end
-         local true_line = line
-         
-         local new_block_comment = false
-         if not block_comment then
-            local l, equals = line:match("^(.*)%-%-%[(=*)%[")
-            if l then
-               line = l
-               new_block_comment = true
-            end
-         else
-            local l = line:match("%]"..equals.."%](.*)$")
-            if l then
-               line = l
-               block_comment = false
-            end         
-         end
-         
-         local hits = filedata[line_nr] or 0
-         if block_comment or excluded(line) then
-            if hits > 0 then
-               report:write(false_negative_format:format(hits))
-            else
-               report:write(empty_format)
-            end
-         else
-            if hits == 0 then
-               report:write(zero_format)            
-            else
-               report:write(count_format:format(hits))
-            end
-         end
-         report:write("\t", true_line, "\n")
-         if new_block_comment then block_comment = true end
-         line_nr = line_nr + 1
-      end
-   end
-end
+configuration.reporter = reporter or configuration.reporter
+runner.run_report(configuration)
